@@ -8,7 +8,6 @@ include:
     file:
       - "jobs/KanikoBuildAndPush.gitlab-ci.yml"
       - "jobs/SkopeoDockerCopy.gitlab-ci.yml"
-      - "jobs/RancherCreateNamespace.gitlab-ci.yml"
       - "jobs/HelmDeployLocalChart.gitlab-ci.yml"
 
 stages:
@@ -73,7 +72,7 @@ artifactory-publish:
   extends: ".kaniko-build-and-push"
   variables:
     DOCKER_FILE_NAME: "Dockerfile"
-    IMAGE_REGISTRY: "orca-docker-private-images.artifactory.rewe.local"
+    IMAGE_REGISTRY: "atp-docker-private-images.artifactory.rewe.local"
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
     IMAGE_TAG_LATEST: "false"
   parallel:
@@ -93,9 +92,9 @@ artifactory-release:
   stage: "release"
   extends: ".skopeo-docker-copy"
   variables:
-    SRC_IMAGE_REGISTRY: "orca-docker-private-images.artifactory.rewe.local"
+    SRC_IMAGE_REGISTRY: "atp-docker-private-images.artifactory.rewe.local"
     SRC_IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
-    DEST_IMAGE_REGISTRY: "orca-docker-private-images.artifactory.rewe.local"
+    DEST_IMAGE_REGISTRY: "atp-docker-private-images.artifactory.rewe.local"
     DEST_IMAGE_TAG: "$CI_COMMIT_TAG"
   parallel:
     matrix:
@@ -117,21 +116,6 @@ gitlab-release:
     - if: "$CI_COMMIT_TAG"
 
 # =============================================================
-# 🏗️ Create Namespace
-# =============================================================
-
-create-namespace:
-  stage: "deploy"
-  extends: ".rancher-create-namespace"
-  environment:
-    name: "prod/$TENANT"
-    action: "prepare"
-  variables:
-    NAMESPACE_JSON: "$RANCHER_NAMESPACE_JSON"
-  rules:
-    - if: "$CI_COMMIT_TAG"
-
-# =============================================================
 # 🚀 Deploy Application
 # =============================================================
 
@@ -139,7 +123,6 @@ deploy:
   stage: "deploy"
   extends: ".helm-deploy-chart"
   needs:
-    - job: "create-namespace"
     - job: "artifactory-release"
     - job: "gitlab-release"
   environment:
@@ -153,14 +136,14 @@ deploy:
     HELM_VALUES_FILE: "helm/values.yaml"
     HELM_TEMPLATE_EXTRA_ARGS: >-
       --values "$SECRET_VALUES"
-      --set-string 'image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed'
-      --set-string 'migrations.image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate'
+      --set-string 'image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed'
+      --set-string 'migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate'
       --set-string "image.tag=$CI_COMMIT_TAG"
       --set-string "migrations.image.tag=$CI_COMMIT_TAG"
     HELM_UPGRADE_EXTRA_ARGS: >-
       --values "$SECRET_VALUES"
-      --set-string 'image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed'
-      --set-string 'migrations.image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate'
+      --set-string 'image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed'
+      --set-string 'migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate'
       --set-string "image.tag=$CI_COMMIT_TAG"
       --set-string "migrations.image.tag=$CI_COMMIT_TAG"
   rules:
