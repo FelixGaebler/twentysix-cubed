@@ -55,7 +55,7 @@ migrations:
       cpu: 100m
       memory: 256Mi
     limits:
-      cpu: "1"
+      cpu: 500m
       memory: 512Mi
 
 # Port of the Next.js standalone server inside the container.

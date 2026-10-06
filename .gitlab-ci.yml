@@ -6,14 +6,15 @@ include:
   - project: "cdp/cicd"
     ref: "2.0.2"
     file:
+      - "jobs/SBOMsVulnerabilityScan.gitlab-ci.yml"
       - "jobs/KanikoBuildAndPush.gitlab-ci.yml"
       - "jobs/SkopeoDockerCopy.gitlab-ci.yml"
       - "jobs/HelmDeployLocalChart.gitlab-ci.yml"
 
 stages:
   - "build"
-  - "scan"
   - "publish"
+  - "scan"
   - "release"
   - "deploy"
 
@@ -29,6 +30,7 @@ variables:
   K8S_NAMESPACE: "lighthouse"
   TENANT: "global"
   TZ: "Europe/Berlin"
+  BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.bun-cache"
 
 # =============================================================
 # 🧪 Build Application
@@ -39,6 +41,15 @@ build:
   image: "oven/bun:1.4.0"
   tags:
     - "L2"
+  cache:
+    key:
+      files:
+        - "bun.lock"
+        - "bunfig.toml"
+    paths:
+      - ".bun-cache/"
+      - ".next/cache/"
+    policy: "pull-push"
   script:
     - "bun install --frozen-lockfile"
     - "bun run lint"
@@ -49,8 +60,18 @@ build:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 # =============================================================
-# 🔎 Audit Dependencies
+# 🔎 Scan Published Image
 # =============================================================
+
+vulnerability-scan:
+  stage: "scan"
+  extends: ".sboms-vulnerability-scan"
+  needs:
+    - job: "artifactory-publish"
+      artifacts: true
+  allow_failure: true
+  rules:
+    - if: "$CI_COMMIT_TAG"
 
 dependency-audit:
   stage: "scan"
@@ -73,6 +94,7 @@ artifactory-publish:
   tags:
     - "L2"
   variables:
+    KANIKO_ENABLE_COMPRESSED_CACHING: "true"
     DOCKER_FILE_NAME: "Dockerfile"
     IMAGE_REGISTRY: "atp-docker-private-images.artifactory.rewe.local"
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
@@ -83,6 +105,7 @@ artifactory-publish:
         DOCKER_FILE_NAME: "Dockerfile"
       - IMAGE_NAME: "twentysix-cubed-migrate"
         DOCKER_FILE_NAME: "Dockerfile.migrate"
+        DISABLE_SBOM_GENERATION: "true"
   rules:
     - if: "$CI_COMMIT_TAG"
 
