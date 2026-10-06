@@ -3,48 +3,48 @@
 # =============================================================
 
 include:
-  - project: 'cdp/cicd'
-    ref: '2.0.2'
+  - project: "cdp/cicd"
+    ref: "2.0.2"
     file:
-      - 'jobs/SBOMsVulnerabilityScan.gitlab-ci.yml'
-      - 'jobs/KanikoBuildAndPush.gitlab-ci.yml'
-      - 'jobs/SkopeoDockerCopy.gitlab-ci.yml'
-      - 'jobs/RancherCreateNamespace.gitlab-ci.yml'
-      - 'jobs/HelmDeployLocalChart.gitlab-ci.yml'
+      - "jobs/SBOMsVulnerabilityScan.gitlab-ci.yml"
+      - "jobs/KanikoBuildAndPush.gitlab-ci.yml"
+      - "jobs/SkopeoDockerCopy.gitlab-ci.yml"
+      - "jobs/RancherCreateNamespace.gitlab-ci.yml"
+      - "jobs/HelmDeployLocalChart.gitlab-ci.yml"
 
 stages:
-  - build
-  - scan
-  - publish
-  - release
-  - deploy
+  - "build"
+  - "scan"
+  - "publish"
+  - "release"
+  - "deploy"
 
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG'
       variables:
-        ENVIRONMENT: 'prod'
-    - when: never
+        ENVIRONMENT: "prod"
+    - when: "never"
 
 variables:
-  K8S_NAMESPACE: 'twentysix-cubed-$TENANT-$ENVIRONMENT'
-  TENANT: 'global'
-  TZ: 'Europe/Berlin'
+  K8S_NAMESPACE: "lighthouse"
+  TENANT: "global"
+  TZ: "Europe/Berlin"
 
 # =============================================================
 # 🧪 Build Application
 # =============================================================
 
 build:
-  stage: build
-  image: oven/bun:1.3.14
+  stage: "build"
+  image: "oven/bun:1.3.14"
   script:
-    - bun install --frozen-lockfile
-    - bun run lint
-    - bun run typecheck
-    - bun run test
-    - bun run build
+    - "bun install --frozen-lockfile"
+    - "bun run lint"
+    - "bun run typecheck"
+    - "bun run test"
+    - "bun run build"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
@@ -53,10 +53,10 @@ build:
 # =============================================================
 
 vulnerability-scan:
-  stage: scan
-  extends: .sboms-vulnerability-scan
+  stage: "scan"
+  extends: ".sboms-vulnerability-scan"
   needs:
-    - job: build
+    - job: "build"
   allow_failure: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -66,99 +66,99 @@ vulnerability-scan:
 # =============================================================
 
 artifactory-publish:
-  stage: publish
-  extends: .kaniko-build-and-push
+  stage: "publish"
+  extends: ".kaniko-build-and-push"
   variables:
-    DOCKER_FILE_NAME: 'Dockerfile'
-    IMAGE_REGISTRY: 'orca-docker-private-images.artifactory.rewe.local'
-    IMAGE_TAG: '$CI_COMMIT_SHORT_SHA'
-    IMAGE_TAG_LATEST: 'false'
+    DOCKER_FILE_NAME: "Dockerfile"
+    IMAGE_REGISTRY: "orca-docker-private-images.artifactory.rewe.local"
+    IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+    IMAGE_TAG_LATEST: "false"
   parallel:
     matrix:
-      - IMAGE_NAME: 'twentysix-cubed'
-        DOCKER_FILE_NAME: 'Dockerfile'
-      - IMAGE_NAME: 'twentysix-cubed-migrate'
-        DOCKER_FILE_NAME: 'Dockerfile.migrate'
+      - IMAGE_NAME: "twentysix-cubed"
+        DOCKER_FILE_NAME: "Dockerfile"
+      - IMAGE_NAME: "twentysix-cubed-migrate"
+        DOCKER_FILE_NAME: "Dockerfile.migrate"
   rules:
-    - if: '$CI_COMMIT_TAG'
+    - if: "$CI_COMMIT_TAG"
 
 # =============================================================
 # 🏷️ Release Artifacts
 # =============================================================
 
 artifactory-release:
-  stage: release
-  extends: .skopeo-docker-copy
+  stage: "release"
+  extends: ".skopeo-docker-copy"
   variables:
-    SRC_IMAGE_REGISTRY: 'orca-docker-private-images.artifactory.rewe.local'
-    SRC_IMAGE_TAG: '$CI_COMMIT_SHORT_SHA'
-    DEST_IMAGE_REGISTRY: 'orca-docker-private-images.artifactory.rewe.local'
-    DEST_IMAGE_TAG: '$CI_COMMIT_TAG'
+    SRC_IMAGE_REGISTRY: "orca-docker-private-images.artifactory.rewe.local"
+    SRC_IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+    DEST_IMAGE_REGISTRY: "orca-docker-private-images.artifactory.rewe.local"
+    DEST_IMAGE_TAG: "$CI_COMMIT_TAG"
   parallel:
     matrix:
-      - SRC_IMAGE_NAME: 'twentysix-cubed'
-        DEST_IMAGE_NAME: 'twentysix-cubed'
-      - SRC_IMAGE_NAME: 'twentysix-cubed-migrate'
-        DEST_IMAGE_NAME: 'twentysix-cubed-migrate'
+      - SRC_IMAGE_NAME: "twentysix-cubed"
+        DEST_IMAGE_NAME: "twentysix-cubed"
+      - SRC_IMAGE_NAME: "twentysix-cubed-migrate"
+        DEST_IMAGE_NAME: "twentysix-cubed-migrate"
   rules:
-    - if: '$CI_COMMIT_TAG'
+    - if: "$CI_COMMIT_TAG"
 
 gitlab-release:
-  stage: release
-  image: cdp-docker-public-pipeline-images.artifactory.rewe.local/rewe-gitlab-release-cli:latest
+  stage: "release"
+  image: "cdp-docker-public-pipeline-images.artifactory.rewe.local/rewe-gitlab-release-cli:latest"
   needs:
-    - job: artifactory-release
+    - job: "artifactory-release"
   script:
-    - release-cli create --name "Version $CI_COMMIT_TAG" --tag-name "$CI_COMMIT_TAG" --description CHANGELOG.md
+    - release-cli create --name "Version $CI_COMMIT_TAG" --tag-name "$CI_COMMIT_TAG" --description 'CHANGELOG.md'
   rules:
-    - if: '$CI_COMMIT_TAG'
+    - if: "$CI_COMMIT_TAG"
 
 # =============================================================
 # 🏗️ Create Namespace
 # =============================================================
 
 create-namespace:
-  stage: deploy
-  extends: .rancher-create-namespace
+  stage: "deploy"
+  extends: ".rancher-create-namespace"
   environment:
-    name: 'prod/$TENANT'
-    action: prepare
+    name: "prod/$TENANT"
+    action: "prepare"
   variables:
-    NAMESPACE_JSON: '$RANCHER_NAMESPACE_JSON'
+    NAMESPACE_JSON: "$RANCHER_NAMESPACE_JSON"
   rules:
-    - if: '$CI_COMMIT_TAG'
+    - if: "$CI_COMMIT_TAG"
 
 # =============================================================
 # 🚀 Deploy Application
 # =============================================================
 
 deploy:
-  stage: deploy
-  extends: .helm-deploy-chart
+  stage: "deploy"
+  extends: ".helm-deploy-chart"
   needs:
-    - job: create-namespace
-    - job: artifactory-release
-    - job: gitlab-release
+    - job: "create-namespace"
+    - job: "artifactory-release"
+    - job: "gitlab-release"
   environment:
-    name: 'prod/$TENANT'
-  resource_group: 'prod/$TENANT'
+    name: "prod/$TENANT"
+  resource_group: "prod/$TENANT"
   variables:
-    HELM_APP_VERSION: '$CI_COMMIT_TAG'
-    HELM_CHART_RELATIVE_PATH: 'helm'
-    HELM_RELEASE_NAME: 'twentysix-cubed'
-    HELM_UPGRADE_ATOMIC: 'true'
-    HELM_VALUES_FILE: 'helm/values.yaml'
+    HELM_APP_VERSION: "$CI_COMMIT_TAG"
+    HELM_CHART_RELATIVE_PATH: "helm"
+    HELM_RELEASE_NAME: "twentysix-cubed"
+    HELM_UPGRADE_ATOMIC: "true"
+    HELM_VALUES_FILE: "helm/values.yaml"
     HELM_TEMPLATE_EXTRA_ARGS: >-
-      --values $SECRET_VALUES
-      --set-string image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed
-      --set-string migrations.image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
-      --set-string image.tag=$CI_COMMIT_TAG
-      --set-string migrations.image.tag=$CI_COMMIT_TAG
+      --values "$SECRET_VALUES"
+      --set-string 'image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed'
+      --set-string 'migrations.image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate'
+      --set-string "image.tag=$CI_COMMIT_TAG"
+      --set-string "migrations.image.tag=$CI_COMMIT_TAG"
     HELM_UPGRADE_EXTRA_ARGS: >-
-      --values $SECRET_VALUES
-      --set-string image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed
-      --set-string migrations.image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
-      --set-string image.tag=$CI_COMMIT_TAG
-      --set-string migrations.image.tag=$CI_COMMIT_TAG
+      --values "$SECRET_VALUES"
+      --set-string 'image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed'
+      --set-string 'migrations.image.repository=orca-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate'
+      --set-string "image.tag=$CI_COMMIT_TAG"
+      --set-string "migrations.image.tag=$CI_COMMIT_TAG"
   rules:
-    - if: '$CI_COMMIT_TAG'
+    - if: "$CI_COMMIT_TAG"
