@@ -154,17 +154,19 @@ commits.
 The [GitLab pipeline](.gitlab-ci.yml) uses shared templates from `cdp/cicd`
 at `2.0.2`; forks need access to that project or equivalent local templates.
 Default-branch pushes only build and scan; tag pushes publish and release images,
-prepare the production namespace and deploy the Helm chart. Merge-request
+then deploy the Helm chart into the existing production namespace. Merge-request
 pipelines and deployments from branches are disabled.
 
-For deployment, configure `RANCHER_NAMESPACE_JSON` as a GitLab file variable
-containing the namespace definition expected by the Rancher template, and
-`SECRET_VALUES` as a file variable containing production Helm values. The
-namespace definition must match `K8S_NAMESPACE` (by default
-`twentysix-cubed-global-prod`). Provide the templates' Rancher, cluster and
-registry credentials, and provision the database, OIDC and image-pull Secrets
-referenced by the chart in that namespace. Validate the merged configuration
-with GitLab CI Lint before enabling protected release tags.
+For deployment, configure `SECRET_VALUES` as a protected GitLab file variable
+containing production Helm values. The production namespace must already exist
+and match `K8S_NAMESPACE`. Set
+`database.url`, `oidc.clientSecret` and `oidc.sessionSecret` in that values file
+to let Helm create the corresponding Kubernetes Secrets. These credentials are
+also stored in Helm release metadata, so restrict access to the release and its
+history. Empty secret values leave the chart using pre-existing Secrets. The
+image-pull Secret must still be provisioned in the namespace. Validate the
+merged configuration with GitLab CI Lint before enabling protected release
+tags.
 
 ## Getting started
 
@@ -606,6 +608,7 @@ deliberately instead of rediscovered.
 
 | Decision | Why | Cost / debt | Revisit when |
 | --- | --- | --- | --- |
+| **Create database and OIDC Secrets from Helm values** | One release configures the app and its runtime credentials | Credentials are stored in Helm release metadata as well as Kubernetes Secrets; access to release history must be restricted | An external secret manager is available and should own secret lifecycle |
 | **Multi-arch images** (`linux/amd64` + `linux/arm64`), arm64 emulated with QEMU on standard GitHub runners | Runs on ARM servers (AWS Graviton, Azure Cobalt, Hetzner CAX) and Apple Silicon without rebuilding | Image builds take several times longer than amd64 alone | Build times hurt: switch to native `ubuntu-24.04-arm` runners and merge the manifests |
 | **Separate migration image** with the full Prisma CLI | The runtime image stays slim (~430 MB, standalone server only) | The migration image is ~2.9 GB, because the Prisma CLI needs all dependencies | Prisma ships a standalone migration binary |
 | **Separate [migration Dockerfile](Dockerfile.migrate) for GitLab Kaniko** | Uses the shared template's Dockerfile input without relying on an undocumented target flag | Must stay aligned with the migration target in the main Dockerfile | The shared template exposes a supported build-target input |

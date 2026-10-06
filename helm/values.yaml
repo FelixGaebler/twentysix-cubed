@@ -13,17 +13,15 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# The chart does not create a database. Create a Secret with the PostgreSQL
-# connection string before installing:
-#   kubectl create secret generic twentysix-cubed-db --from-literal=DATABASE_URL='postgresql://…'
+# Set url to let Helm create the database Secret. Leave it empty to use an
+# existing Secret with the configured name and key.
 database:
+  url: ""
   existingSecret: twentysix-cubed-db
   secretKey: DATABASE_URL
 
-# Sign-in via OpenID Connect (Keycloak, Entra ID, Okta, …). Client secret and
-# session secret come from an existing Secret:
-#   kubectl create secret generic twentysix-cubed-oidc \
-#     --from-literal=OIDC_CLIENT_SECRET='…' --from-literal=SESSION_SECRET="$(openssl rand -base64 32)"
+# Sign-in via OpenID Connect (Keycloak, Entra ID, Okta, …). Set both secrets to
+# let Helm create the OIDC Secret; leave them empty to use an existing Secret.
 oidc:
   enabled: false
   issuer: https://keycloak.example.com/realms/company
@@ -33,6 +31,8 @@ oidc:
   adminGroup: twentysix_admin
   # Public URL of the app; the redirect URI is <appUrl>/auth/callback.
   appUrl: https://acronyms.example.com
+  clientSecret: ""
+  sessionSecret: ""
   existingSecret: twentysix-cubed-oidc
   clientSecretKey: OIDC_CLIENT_SECRET
   sessionSecretKey: SESSION_SECRET
