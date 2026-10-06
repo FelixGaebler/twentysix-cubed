@@ -50,7 +50,13 @@ migrations:
     # Defaults to the chart appVersion.
     tag: ""
   backoffLimit: 1
-  resources: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
 
 # Port of the Next.js standalone server inside the container.
 containerPort: 3000
@@ -117,6 +123,7 @@ resources:
     cpu: 100m
     memory: 256Mi
   limits:
+    cpu: "1"
     memory: 512Mi
 
 # Every page queries the database, so probe the port instead of an HTTP path.

@@ -161,9 +161,12 @@ For deployment, configure `SECRET_VALUES` as a protected GitLab file variable
 containing production Helm values. The production namespace must already exist
 and match `K8S_NAMESPACE`. Set
 `database.url`, `oidc.clientSecret` and `oidc.sessionSecret` in that values file
-to let Helm create the corresponding Kubernetes Secrets. These credentials are
-also stored in Helm release metadata, so restrict access to the release and its
-history. Empty secret values leave the chart using pre-existing Secrets. The
+to let Helm create the corresponding Kubernetes Secrets. The pre-install
+migration receives `database.url` directly because the database Secret is not
+created until after the hook completes. These credentials are also stored in
+Helm release metadata and, for the migration, its Job specification, so restrict
+access to these resources and release history. Empty secret values leave the
+chart using pre-existing Secrets. The
 image-pull Secret must still be provisioned in the namespace. Validate the
 merged configuration with GitLab CI Lint before enabling protected release
 tags.
@@ -608,7 +611,8 @@ deliberately instead of rediscovered.
 
 | Decision | Why | Cost / debt | Revisit when |
 | --- | --- | --- | --- |
-| **Create database and OIDC Secrets from Helm values** | One release configures the app and its runtime credentials | Credentials are stored in Helm release metadata as well as Kubernetes Secrets; access to release history must be restricted | An external secret manager is available and should own secret lifecycle |
+| **Create database and OIDC Secrets from Helm values; pass a supplied database URL directly to the migration hook** | One release configures the app and its runtime credentials; first-install migrations do not wait for a Secret that Helm has not created yet | Credentials are stored in Helm release metadata, Kubernetes Secrets and the migration Job specification; access must be restricted | An external secret manager is available and should own secret lifecycle |
+| **CPU and memory requests and limits for app and migration containers** | Supports namespaces whose resource quotas require all four allocations | Default limits can throttle CPU or terminate memory-heavy workloads; tune the values for the deployment | Observed resource usage exceeds the defaults |
 | **Multi-arch images** (`linux/amd64` + `linux/arm64`), arm64 emulated with QEMU on standard GitHub runners | Runs on ARM servers (AWS Graviton, Azure Cobalt, Hetzner CAX) and Apple Silicon without rebuilding | Image builds take several times longer than amd64 alone | Build times hurt: switch to native `ubuntu-24.04-arm` runners and merge the manifests |
 | **Separate migration image** with the full Prisma CLI | The runtime image stays slim (~430 MB, standalone server only) | The migration image is ~2.9 GB, because the Prisma CLI needs all dependencies | Prisma ships a standalone migration binary |
 | **Separate [migration Dockerfile](Dockerfile.migrate) for GitLab Kaniko** | Uses the shared template's Dockerfile input without relying on an undocumented target flag | Must stay aligned with the migration target in the main Dockerfile | The shared template exposes a supported build-target input |

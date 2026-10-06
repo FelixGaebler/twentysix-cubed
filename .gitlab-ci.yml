@@ -131,22 +131,21 @@ deploy:
     name: "prod/$TENANT"
   resource_group: "prod/$TENANT"
   variables:
+    KUBECONFIG: "/home/pipeline/.kube/config"
     HELM_APP_VERSION: "$CI_COMMIT_TAG"
     HELM_CHART_RELATIVE_PATH: "helm"
     HELM_RELEASE_NAME: "twentysix-cubed"
     HELM_UPGRADE_ATOMIC: "true"
-    HELM_VALUES_FILE: "helm/values.yaml"
+    HELM_VALUES_FILE: "helm/values.yaml $SECRET_VALUES"
     HELM_TEMPLATE_EXTRA_ARGS: >-
-      --values "$SECRET_VALUES"
-      --set-string 'image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed'
-      --set-string 'migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate'
-      --set-string "image.tag=$CI_COMMIT_TAG"
-      --set-string "migrations.image.tag=$CI_COMMIT_TAG"
+      --set-string image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed
+      --set-string migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
+      --set-string image.tag=$CI_COMMIT_TAG
+      --set-string migrations.image.tag=$CI_COMMIT_TAG
     HELM_UPGRADE_EXTRA_ARGS: >-
-      --values "$SECRET_VALUES"
-      --set-string 'image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed'
-      --set-string 'migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate'
-      --set-string "image.tag=$CI_COMMIT_TAG"
-      --set-string "migrations.image.tag=$CI_COMMIT_TAG"
+      --set-string image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed
+      --set-string migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
+      --set-string image.tag=$CI_COMMIT_TAG
+      --set-string migrations.image.tag=$CI_COMMIT_TAG
   rules:
     - if: "$CI_COMMIT_TAG"
