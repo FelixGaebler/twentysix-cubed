@@ -6,7 +6,6 @@ include:
   - project: "cdp/cicd"
     ref: "2.0.2"
     file:
-      - "jobs/SBOMsVulnerabilityScan.gitlab-ci.yml"
       - "jobs/KanikoBuildAndPush.gitlab-ci.yml"
       - "jobs/SkopeoDockerCopy.gitlab-ci.yml"
       - "jobs/RancherCreateNamespace.gitlab-ci.yml"
@@ -51,14 +50,16 @@ build:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 # =============================================================
-# 🔎 Scan Application
+# 🔎 Audit Dependencies
 # =============================================================
 
-vulnerability-scan:
+dependency-audit:
   stage: "scan"
-  extends: ".sboms-vulnerability-scan"
+  image: "oven/bun:1.3.14"
   needs:
     - job: "build"
+  script:
+    - "bun audit"
   allow_failure: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
