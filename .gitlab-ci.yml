@@ -36,7 +36,7 @@ variables:
 
 build:
   stage: "build"
-  image: "oven/bun:1.3.14"
+  image: "oven/bun:1.4.0"
   tags:
     - "L2"
   script:
@@ -54,7 +54,7 @@ build:
 
 dependency-audit:
   stage: "scan"
-  image: "oven/bun:1.3.14"
+  image: "oven/bun:1.4.0"
   needs:
     - job: "build"
   script:
@@ -70,6 +70,8 @@ dependency-audit:
 artifactory-publish:
   stage: "publish"
   extends: ".kaniko-build-and-push"
+  tags:
+    - "L2"
   variables:
     DOCKER_FILE_NAME: "Dockerfile"
     IMAGE_REGISTRY: "atp-docker-private-images.artifactory.rewe.local"
