@@ -129,7 +129,7 @@ resources:
     cpu: 100m
     memory: 256Mi
   limits:
-    cpu: "1"
+    cpu: 500m
     memory: 512Mi
 
 # Every page queries the database, so probe the port instead of an HTTP path.
