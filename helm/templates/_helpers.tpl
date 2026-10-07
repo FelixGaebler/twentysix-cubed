@@ -60,3 +60,21 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/* Build the DB URL from direct values or separate Vault-injected credentials. */}}
+{{- define "twentysix-cubed.databaseUrl" -}}
+{{- if .Values.database.url -}}
+{{- .Values.database.url -}}
+{{- else if or .Values.database.username .Values.database.password -}}
+{{- $username := required "database.username is required to build DATABASE_URL" .Values.database.username | trim | urlquery | replace "+" "%20" -}}
+{{- $password := required "database.password is required to build DATABASE_URL" .Values.database.password | trim | urlquery | replace "+" "%20" -}}
+{{- $host := required "database.host is required to build DATABASE_URL" .Values.database.host -}}
+{{- $database := required "database.database is required to build DATABASE_URL" .Values.database.database | urlquery | replace "+" "%20" -}}
+{{- $databaseUrl := printf "postgresql://%s:%s@%s:%v/%s" $username $password $host .Values.database.port $database -}}
+{{- if .Values.database.sslMode -}}
+{{- $sslMode := .Values.database.sslMode | urlquery | replace "+" "%20" -}}
+{{- $databaseUrl = printf "%s?sslmode=%s" $databaseUrl $sslMode -}}
+{{- end -}}
+{{- $databaseUrl -}}
+{{- end -}}
+{{- end -}}

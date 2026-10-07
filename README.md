@@ -159,17 +159,44 @@ pipelines and deployments from branches are disabled.
 
 For deployment, configure `SECRET_VALUES` as a protected GitLab file variable
 containing production Helm values. The production namespace must already exist
-and match `K8S_NAMESPACE`. Set
-`database.url`, `oidc.clientSecret` and `oidc.sessionSecret` in that values file
-to let Helm create the corresponding Kubernetes Secrets. The pre-install
-migration receives `database.url` directly because the database Secret is not
-created until after the hook completes. These credentials are also stored in
-Helm release metadata and, for the migration, its Job specification, so restrict
-access to these resources and release history. Empty secret values leave the
-chart using pre-existing Secrets. The
-image-pull Secret must still be provisioned in the namespace. Validate the
-merged configuration with GitLab CI Lint before enabling protected release
-tags.
+and match `K8S_NAMESPACE`. Set `database.host`, `database.port`,
+`database.database` and `database.sslMode` in that values file. The production
+deploy job fetches the database `user` and `password` fields from Vault using a
+GitLab ID token, then passes them to Helm as files. Helm builds the connection
+URL and creates the database Secret; the pre-install migration uses the same
+URL directly. The credentials are also stored in Helm release metadata and, for
+the migration, its Job specification, so restrict access to these resources and
+release history. Empty credential values leave the chart using a pre-existing
+Secret. OIDC secrets and the image-pull Secret must still be provisioned as
+configured. Validate the merged configuration with GitLab CI Lint before
+enabling protected release tags.
+
+Example `SECRET_VALUES` file (replace the example values; never commit real
+credentials):
+
+```yaml
+database:
+  host: "<postgres-host>"
+  port: 5432
+  database: "<database-name>"
+  sslMode: require
+
+oidc:
+  enabled: true
+  issuer: "https://identity.example.com/realms/company"
+  clientId: "twentysix-cubed"
+  scopes: "openid profile email"
+  adminGroup: "twentysix_admin"
+  appUrl: "https://acronyms.example.com"
+  clientSecret: "<protected-oidc-client-secret>"
+  sessionSecret: "<generated-random-secret>"
+
+devUser:
+  enabled: false
+```
+
+The deploy job fetches the database username and password from Vault and sets
+the registry image-pull Secret separately; neither belongs in this file.
 
 ## Getting started
 

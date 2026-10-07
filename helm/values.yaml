@@ -17,6 +17,12 @@ fullnameOverride: ""
 # existing Secret with the configured name and key.
 database:
   url: ""
+  host: ""
+  port: 5432
+  database: ""
+  sslMode: require
+  username: ""
+  password: ""
   existingSecret: twentysix-cubed-db
   secretKey: DATABASE_URL
 

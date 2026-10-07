@@ -147,6 +147,16 @@ gitlab-release:
 deploy:
   stage: "deploy"
   extends: ".helm-deploy-chart"
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: "https://platform.vault.rewe.cloud/"
+  secrets:
+    DATABASE_USER:
+      vault: "pgdb/hippo/prod/databases/twentysix_cubed/user@saas-postgresql"
+      file: true
+    DATABASE_PASSWORD:
+      vault: "pgdb/hippo/prod/databases/twentysix_cubed/password@saas-postgresql"
+      file: true
   needs:
     - job: "artifactory-release"
     - job: "gitlab-release"
@@ -155,18 +165,25 @@ deploy:
   resource_group: "prod/$TENANT"
   variables:
     KUBECONFIG: "/home/pipeline/.kube/config"
+    VAULT_SERVER_URL: "https://platform.vault.rewe.cloud"
+    VAULT_AUTH_PATH: "gitlab-id-token"
+    VAULT_AUTH_ROLE: "twentysix-cubed"
     HELM_APP_VERSION: "$CI_COMMIT_TAG"
     HELM_CHART_RELATIVE_PATH: "helm"
     HELM_RELEASE_NAME: "twentysix-cubed"
     HELM_UPGRADE_ATOMIC: "true"
     HELM_VALUES_FILE: "helm/values.yaml $SECRET_VALUES"
     HELM_TEMPLATE_EXTRA_ARGS: >-
+      --set-file database.username=$DATABASE_USER
+      --set-file database.password=$DATABASE_PASSWORD
       --set-string image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed
       --set-string migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
       --set-string imagePullSecrets[0].name=esc-artifactory-global-reader
       --set-string image.tag=$CI_COMMIT_TAG
       --set-string migrations.image.tag=$CI_COMMIT_TAG
     HELM_UPGRADE_EXTRA_ARGS: >-
+      --set-file database.username=$DATABASE_USER
+      --set-file database.password=$DATABASE_PASSWORD
       --set-string image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed
       --set-string migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
       --set-string imagePullSecrets[0].name=esc-artifactory-global-reader
