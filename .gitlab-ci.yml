@@ -163,11 +163,13 @@ deploy:
     HELM_TEMPLATE_EXTRA_ARGS: >-
       --set-string image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed
       --set-string migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
+      --set-string imagePullSecrets[0].name=esc-artifactory-global-reader
       --set-string image.tag=$CI_COMMIT_TAG
       --set-string migrations.image.tag=$CI_COMMIT_TAG
     HELM_UPGRADE_EXTRA_ARGS: >-
       --set-string image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed
       --set-string migrations.image.repository=atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
+      --set-string imagePullSecrets[0].name=esc-artifactory-global-reader
       --set-string image.tag=$CI_COMMIT_TAG
       --set-string migrations.image.tag=$CI_COMMIT_TAG
   rules:
