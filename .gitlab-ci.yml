@@ -149,7 +149,7 @@ deploy:
   extends: ".helm-deploy-chart"
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: "https://platform.vault.rewe.cloud/"
+      aud: "https://platform.vault.rewe.cloud"
   secrets:
     DATABASE_USER:
       vault: "pgdb/hippo/prod/databases/twentysix_cubed/user@saas-postgresql"
