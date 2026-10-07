@@ -159,27 +159,21 @@ pipelines and deployments from branches are disabled.
 
 For deployment, configure `SECRET_VALUES` as a protected GitLab file variable
 containing production Helm values. The production namespace must already exist
-and match `K8S_NAMESPACE`. Set `database.host`, `database.port`,
-`database.database` and `database.sslMode` in that values file. The production
-deploy job fetches the database `user` and `password` fields from Vault using a
-GitLab ID token, then passes them to Helm as files. Helm builds the connection
-URL and creates the database Secret; the pre-install migration uses the same
-URL directly. The credentials are also stored in Helm release metadata and, for
-the migration, its Job specification, so restrict access to these resources and
-release history. Empty credential values leave the chart using a pre-existing
-Secret. OIDC secrets and the image-pull Secret must still be provisioned as
-configured. Validate the merged configuration with GitLab CI Lint before
-enabling protected release tags.
+and match `K8S_NAMESPACE`. Set `database.url` in that values file to the
+complete PostgreSQL connection string. Helm creates the
+database Secret from this URL; the pre-install migration receives it directly.
+The URL is stored in Helm release metadata and the migration Job specification,
+so restrict access to these resources and release history. An empty URL makes
+the chart use a pre-existing database Secret. OIDC secrets and the image-pull
+Secret must still be provisioned as configured. Validate the merged
+configuration with GitLab CI Lint before enabling protected release tags.
 
 Example `SECRET_VALUES` file (replace the example values; never commit real
 credentials):
 
 ```yaml
 database:
-  host: "<postgres-host>"
-  port: 5432
-  database: "<database-name>"
-  sslMode: require
+  url: "postgresql://<user>:<password>@<host>:5432/<database>?sslmode=require"
 
 oidc:
   enabled: true
@@ -195,8 +189,7 @@ devUser:
   enabled: false
 ```
 
-The deploy job fetches the database username and password from Vault and sets
-the registry image-pull Secret separately; neither belongs in this file.
+The registry image-pull Secret is set separately by the deploy job.
 
 ## Getting started
 

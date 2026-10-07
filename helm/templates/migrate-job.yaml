@@ -1,5 +1,4 @@
 {{- if .Values.migrations.enabled }}
-{{- $databaseUrl := include "twentysix-cubed.databaseUrl" . | trim -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -29,8 +28,8 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: DATABASE_URL
-              {{- if $databaseUrl }}
-              value: {{ $databaseUrl | quote }}
+              {{- if .Values.database.url }}
+              value: {{ .Values.database.url | quote }}
               {{- else }}
               valueFrom:
                 secretKeyRef:
