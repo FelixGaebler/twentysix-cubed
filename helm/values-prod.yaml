@@ -49,7 +49,7 @@ ingress:
     - secretName: twentysix-cubed-tls
       hosts:
         - twentysix-cubed.prod-gcp-01.paas.rewe.local
-  #       - glossary.rewe-group.com
+        - glossary.rewe-group.com
 
 resources:
   requests:
