@@ -17,7 +17,7 @@ oidc:
   clientId: "twentysix-cubed"
   scopes: "openid profile email"
   adminGroup: "twentysix_admin"
-  appUrl: "https://twentysix-cubed.prod-gcp-01.paas.rewe.local"
+  appUrl: "https://glossary.rewe-group.com"
 
 migrations:
   enabled: true
