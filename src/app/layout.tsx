@@ -16,9 +16,26 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
+  const description = t.metadata.description;
+  const image = "/opengraph-image";
+
   return {
+    metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
     title: { default: "26³", template: "%s · 26³" },
-    description: t.metadata.description,
+    description,
+    openGraph: {
+      type: "website",
+      siteName: "26³",
+      title: "26³ · Company Acronym Glossary",
+      description,
+      images: [{ url: image, width: 1200, height: 630, alt: "26³ company glossary" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "26³ · Company Acronym Glossary",
+      description,
+      images: [image],
+    },
   };
 }
 

@@ -157,23 +157,34 @@ Default-branch pushes only build and scan; tag pushes publish and release images
 then deploy the Helm chart into the existing production namespace. Merge-request
 pipelines and deployments from branches are disabled.
 
-For deployment, configure `SECRET_VALUES` as a protected GitLab file variable
-containing production Helm values. The production namespace must already exist
-and match `K8S_NAMESPACE`. Set `database.url` in that values file to the
-complete PostgreSQL connection string. Helm creates the
-database Secret from this URL; the pre-install migration receives it directly.
-The database and OIDC keys share one `<release>-secret`. Credentials are stored
-in Helm release metadata and the migration Job specification, so restrict
-access to these resources and release history. When all database and OIDC
-secret values are empty, the chart uses a pre-existing `<release>-secret` with
-all configured keys. The image-pull Secret must still be provisioned as
-configured. Validate the merged configuration with GitLab CI Lint before
-enabling protected release tags.
+For deployment, configure `CONFIG_FILE` as a protected GitLab file variable
+containing the complete production Helm values. The production namespace must
+already exist and match `K8S_NAMESPACE`. Set `database.url` to the complete
+PostgreSQL connection string. Helm creates one `<release>-secret` for the
+database and OIDC credentials; the pre-install migration receives the database
+URL directly. Credentials are stored in Helm release metadata and the migration
+Job specification, so restrict access to these resources and release history.
+The image-pull Secret must still be provisioned as configured. Validate the
+merged configuration with GitLab CI Lint before enabling protected release
+tags.
 
-Example `SECRET_VALUES` file (replace the example values; never commit real
+Example `CONFIG_FILE` contents (replace the example values; never commit real
 credentials):
 
 ```yaml
+image:
+  repository: "atp-docker-private-images.artifactory.rewe.local/twentysix-cubed"
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets:
+  - name: esc-artifactory-global-reader
+
+migrations:
+  image:
+    repository: "atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate"
+    tag: ""
+
 database:
   url: "postgresql://<user>:<password>@<host>:5432/<database>?sslmode=require"
 
@@ -187,17 +198,32 @@ oidc:
   clientSecret: "<protected-oidc-client-secret>"
   sessionSecret: "<generated-random-secret>"
 
+ingress:
+  enabled: true
+  className: haproxy
+  hosts:
+    - host: "<application-host>"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: "<release>-tls"
+      hosts:
+        - "<application-host>"
+
+issuer:
+  enabled: true
+  acmeServer: "https://acme.example.com/directory"
+  email: "<certificate-operations-email>"
+
 devUser:
   enabled: false
 ```
 
-The registry image-pull Secret is set separately by the deploy job.
-
-The Helm chart defaults to the `haproxy` Ingress class. Configure
-`ingress.hosts` and `ingress.tls` to use an existing TLS Secret. To have
-cert-manager request certificates, set `issuer.enabled`, `issuer.acmeServer`
-and `issuer.email`; the chart then creates an ACME Issuer and a Certificate for
-each TLS entry. This requires cert-manager to be installed in the cluster.
+`helm/values.yaml` supplies defaults; `CONFIG_FILE` overrides them for the
+production install. The shared deploy template sets the release image version.
+The chart defaults to the `haproxy` Ingress class. Cert-manager must be installed
+in the cluster when issuer creation is enabled.
 
 ## Getting started
 
@@ -573,16 +599,9 @@ database and OIDC secret values empty and create one `<release>-secret` with the
 configured keys.
 
 ```bash
-helm install twentysix-cubed ./helm \
-  --values /secure/path/production-values.yaml \
-  --set image.repository=ghcr.io/<you>/twentysix-cubed \
-  --set migrations.image.repository=ghcr.io/<you>/twentysix-cubed-migrate \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=acronyms.example.com \
-  --set oidc.enabled=true \
-  --set oidc.issuer=https://keycloak.example.com/realms/company \
-  --set oidc.clientId=twentysix-cubed \
-  --set oidc.appUrl=https://acronyms.example.com
+helm upgrade --install twentysix-cubed ./helm \
+  --values helm/values.yaml \
+  --values /secure/path/CONFIG_FILE
 ```
 
 See [`helm/values.yaml`](helm/values.yaml) for all options.
@@ -614,8 +633,9 @@ runs the images of the same release:
 | Helm chart      | `oci://ghcr.io/felixgaebler/charts/twentysix-cubed` |
 
 ```bash
-helm install twentysix-cubed oci://ghcr.io/felixgaebler/charts/twentysix-cubed --version 0.1.0 \
-  --set ingress.enabled=true --set ingress.hosts[0].host=acronyms.example.com
+helm upgrade --install twentysix-cubed oci://ghcr.io/felixgaebler/charts/twentysix-cubed --version 0.1.0 \
+  --values helm/values.yaml \
+  --values /secure/path/CONFIG_FILE
 ```
 
 ### Prisma Compute
