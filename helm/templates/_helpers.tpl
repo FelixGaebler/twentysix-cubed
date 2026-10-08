@@ -23,6 +23,18 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 {{- end }}
 
+{{/* Append a resource suffix to the release name and keep it DNS-label safe. */}}
+{{- define "twentysix-cubed.resourceName" -}}
+{{- $suffix := .suffix -}}
+{{- $maxBaseLength := sub 63 (add 1 (len $suffix)) -}}
+{{- $baseName := include "twentysix-cubed.fullname" .root | trunc (int $maxBaseLength) | trimSuffix "-" -}}
+{{- printf "%s-%s" $baseName $suffix -}}
+{{- end }}
+
+{{- define "twentysix-cubed.secretName" -}}
+{{- default (include "twentysix-cubed.resourceName" (dict "root" . "suffix" "secret")) .Values.secretName -}}
+{{- end }}
+
 {{/*
 Create chart name and version as used by the chart label.
 */}}
@@ -48,15 +60,4 @@ Selector labels
 {{- define "twentysix-cubed.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "twentysix-cubed.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
-
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "twentysix-cubed.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "twentysix-cubed.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
 {{- end }}

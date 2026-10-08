@@ -13,17 +13,17 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# The chart does not create a database. Create a Secret with the PostgreSQL
-# connection string before installing:
-#   kubectl create secret generic twentysix-cubed-db --from-literal=DATABASE_URL='postgresql://…'
+# Defaults to <release-name>-secret, shared by database and OIDC credentials.
+secretName: ""
+
+# Set url to let Helm create the shared application Secret. Leave it and the
+# OIDC secret values empty to use a pre-existing Secret with all configured keys.
 database:
-  existingSecret: twentysix-cubed-db
+  url: ""
   secretKey: DATABASE_URL
 
-# Sign-in via OpenID Connect (Keycloak, Entra ID, Okta, …). Client secret and
-# session secret come from an existing Secret:
-#   kubectl create secret generic twentysix-cubed-oidc \
-#     --from-literal=OIDC_CLIENT_SECRET='…' --from-literal=SESSION_SECRET="$(openssl rand -base64 32)"
+# Sign-in via OpenID Connect (Keycloak, Entra ID, Okta, …). OIDC secret keys are
+# stored in the same application Secret as DATABASE_URL.
 oidc:
   enabled: false
   issuer: https://keycloak.example.com/realms/company
@@ -33,7 +33,8 @@ oidc:
   adminGroup: twentysix_admin
   # Public URL of the app; the redirect URI is <appUrl>/auth/callback.
   appUrl: https://acronyms.example.com
-  existingSecret: twentysix-cubed-oidc
+  clientSecret: ""
+  sessionSecret: ""
   clientSecretKey: OIDC_CLIENT_SECRET
   sessionSecretKey: SESSION_SECRET
 
@@ -50,19 +51,19 @@ migrations:
     # Defaults to the chart appVersion.
     tag: ""
   backoffLimit: 1
-  resources: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 # Port of the Next.js standalone server inside the container.
 containerPort: 3000
 
 # Additional environment variables for the app container.
 env: []
-
-serviceAccount:
-  create: true
-  automount: false
-  annotations: {}
-  name: ""
 
 podAnnotations: {}
 podLabels: {}
@@ -85,7 +86,7 @@ service:
 
 ingress:
   enabled: false
-  className: ""
+  className: haproxy
   annotations: {}
   hosts:
     - host: acronyms.example.com
@@ -96,6 +97,11 @@ ingress:
   #  - secretName: acronyms-tls
   #    hosts:
   #      - acronyms.example.com
+
+issuer:
+  enabled: false
+  acmeServer: ""
+  email: ""
 
 # Expose the service via a Gateway API HTTPRoute instead of an Ingress.
 httpRoute:
@@ -117,6 +123,7 @@ resources:
     cpu: 100m
     memory: 256Mi
   limits:
+    cpu: 500m
     memory: 512Mi
 
 # Every page queries the database, so probe the port instead of an HTTP path.

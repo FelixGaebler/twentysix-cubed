@@ -116,6 +116,115 @@ instance. To make it yours:
    a few real acronyms, or start empty and let people discover them.
 6. **Deploy** it wherever you run Node.js – see [Deployment](#deployment).
 
+### Forking to an internal GitLab
+
+To work on a GitHub project while keeping your changes in your company's
+GitLab, create an empty project in GitLab first. Do not initialize it with a
+README, license or other files. Then clone GitHub and configure GitLab as
+`origin` and GitHub as `upstream`:
+
+```bash
+git clone https://github.com/<owner>/<project>.git
+cd <project>
+git remote rename origin upstream
+git remote add origin git@gitlab.company.com:<group>/<project>.git
+git push -u origin --all
+git push origin --tags
+```
+
+Check the destinations with `git remote -v`. With this setup, a plain `git
+push` pushes to the GitLab `origin`; `upstream` is the GitHub source. A push
+to GitHub would require explicitly pushing to `upstream`.
+
+To bring in later GitHub changes, fetch and merge the relevant upstream branch,
+then push it to GitLab:
+
+```bash
+git fetch upstream
+git switch main
+git merge upstream/main
+git push origin main
+```
+
+Replace `main` with the branch used by the source repository. This workflow
+supports internal changes and normal Git history; use `git clone --mirror` only
+if the GitLab project should remain an exact mirror with no separate internal
+commits.
+
+The [GitLab pipeline](.gitlab-ci.yml) uses shared templates from `cdp/cicd`
+at `2.0.2`; forks need access to that project or equivalent local templates.
+Default-branch pushes only build and scan; tag pushes publish and release images,
+then deploy the Helm chart into the existing production namespace. Merge-request
+pipelines and deployments from branches are disabled.
+
+For deployment, configure `CONFIG_FILE` as a protected GitLab file variable
+containing the complete production Helm values. The production namespace must
+already exist and match `K8S_NAMESPACE`. Set `database.url` to the complete
+PostgreSQL connection string. Helm creates one `<release>-secret` for the
+database and OIDC credentials; the pre-install migration receives the database
+URL directly. Credentials are stored in Helm release metadata and the migration
+Job specification, so restrict access to these resources and release history.
+The image-pull Secret must still be provisioned as configured. Validate the
+merged configuration with GitLab CI Lint before enabling protected release
+tags.
+
+Example `CONFIG_FILE` contents (replace the example values; never commit real
+credentials):
+
+```yaml
+image:
+  repository: "atp-docker-private-images.artifactory.rewe.local/twentysix-cubed"
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets:
+  - name: esc-artifactory-global-reader
+
+migrations:
+  image:
+    repository: "atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate"
+    tag: ""
+
+database:
+  url: "postgresql://<user>:<password>@<host>:5432/<database>?sslmode=require"
+
+oidc:
+  enabled: true
+  issuer: "https://identity.example.com/realms/company"
+  clientId: "twentysix-cubed"
+  scopes: "openid profile email"
+  adminGroup: "twentysix_admin"
+  appUrl: "https://acronyms.example.com"
+  clientSecret: "<protected-oidc-client-secret>"
+  sessionSecret: "<generated-random-secret>"
+
+ingress:
+  enabled: true
+  className: haproxy
+  hosts:
+    - host: "<application-host>"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: "<release>-tls"
+      hosts:
+        - "<application-host>"
+
+issuer:
+  enabled: true
+  acmeServer: "https://acme.example.com/directory"
+  email: "<certificate-operations-email>"
+
+devUser:
+  enabled: false
+```
+
+`helm/values.yaml` supplies defaults; `CONFIG_FILE` overrides them for the
+production install. The shared deploy template sets the release image version.
+The chart defaults to the `haproxy` Ingress class. Cert-manager must be installed
+in the cluster when issuer creation is enabled.
+
 ## Getting started
 
 ### Requirements
@@ -482,26 +591,17 @@ connection string becomes invalid.
 ### Kubernetes (Helm)
 
 The chart in [`helm/`](helm) deploys the app and runs the migration image as a
-`pre-install`/`pre-upgrade` hook. It expects an existing PostgreSQL database
-and Secrets for the connection string and the OIDC credentials:
+`pre-install`/`pre-upgrade` hook. Supply the database URL and OIDC credentials
+through a protected values file; Helm stores them in one `<release>-secret`.
+The migration hook receives the database URL directly because it runs before
+that Secret is created. To reuse a Secret provisioned outside Helm, leave all
+database and OIDC secret values empty and create one `<release>-secret` with the
+configured keys.
 
 ```bash
-kubectl create secret generic twentysix-cubed-db \
-  --from-literal=DATABASE_URL='postgresql://user:password@host:5432/db'
-
-kubectl create secret generic twentysix-cubed-oidc \
-  --from-literal=OIDC_CLIENT_SECRET='…' \
-  --from-literal=SESSION_SECRET="$(openssl rand -base64 32)"
-
-helm install twentysix-cubed ./helm \
-  --set image.repository=ghcr.io/<you>/twentysix-cubed \
-  --set migrations.image.repository=ghcr.io/<you>/twentysix-cubed-migrate \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=acronyms.example.com \
-  --set oidc.enabled=true \
-  --set oidc.issuer=https://keycloak.example.com/realms/company \
-  --set oidc.clientId=twentysix-cubed \
-  --set oidc.appUrl=https://acronyms.example.com
+helm upgrade --install twentysix-cubed ./helm \
+  --values helm/values.yaml \
+  --values /secure/path/CONFIG_FILE
 ```
 
 See [`helm/values.yaml`](helm/values.yaml) for all options.
@@ -533,8 +633,9 @@ runs the images of the same release:
 | Helm chart      | `oci://ghcr.io/felixgaebler/charts/twentysix-cubed` |
 
 ```bash
-helm install twentysix-cubed oci://ghcr.io/felixgaebler/charts/twentysix-cubed --version 0.1.0 \
-  --set ingress.enabled=true --set ingress.hosts[0].host=acronyms.example.com
+helm upgrade --install twentysix-cubed oci://ghcr.io/felixgaebler/charts/twentysix-cubed --version 0.1.0 \
+  --values helm/values.yaml \
+  --values /secure/path/CONFIG_FILE
 ```
 
 ### Prisma Compute
@@ -556,8 +657,11 @@ deliberately instead of rediscovered.
 
 | Decision | Why | Cost / debt | Revisit when |
 | --- | --- | --- | --- |
+| **Create one shared app Secret from Helm values; pass its database URL directly to the migration hook** | One release configures the app and its runtime credentials; first-install migrations do not wait for a Secret that Helm has not created yet | Credentials are stored in Helm release metadata, one Kubernetes Secret and the migration Job specification; access must be restricted | An external secret manager is available and should own secret lifecycle |
+| **CPU and memory requests and limits for app and migration containers** | Supports namespaces whose resource quotas require all four allocations | Default limits can throttle CPU or terminate memory-heavy workloads; tune the values for the deployment | Observed resource usage exceeds the defaults |
 | **Multi-arch images** (`linux/amd64` + `linux/arm64`), arm64 emulated with QEMU on standard GitHub runners | Runs on ARM servers (AWS Graviton, Azure Cobalt, Hetzner CAX) and Apple Silicon without rebuilding | Image builds take several times longer than amd64 alone | Build times hurt: switch to native `ubuntu-24.04-arm` runners and merge the manifests |
 | **Separate migration image** with the full Prisma CLI | The runtime image stays slim (~430 MB, standalone server only) | The migration image is ~2.9 GB, because the Prisma CLI needs all dependencies | Prisma ships a standalone migration binary |
+| **Separate [migration Dockerfile](Dockerfile.migrate) for GitLab Kaniko** | Uses the shared template's Dockerfile input without relying on an undocumented target flag | Must stay aligned with the migration target in the main Dockerfile | The shared template exposes a supported build-target input |
 | **Prisma 8 release candidate** | Contract-first data layer, typed queries, no code generation | Pre-release APIs may change before 8.0 | Prisma 8.0 is stable |
 | **Temporal polyfill** (`temporal-polyfill`) | Prisma 8 date fields use the `Temporal` API, which Node.js 24 doesn't ship | One extra runtime dependency | Node.js ships `Temporal` |
 | **UUIDv7 primary keys** (native `uuid` columns, generated by Prisma) | Ids can't be guessed or enumerated, don't reveal how many rows exist, and stay roughly time-ordered for indexes | 16 instead of 4 bytes per key; ids are less readable in logs and URLs | Never, unless storage or index size becomes a problem |
