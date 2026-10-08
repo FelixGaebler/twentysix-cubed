@@ -14,5 +14,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!auth/|_next/|icon\\.svg|favicon\\.ico).*)"],
+  matcher: ["/((?!auth/|_next/|icon\\.svg|favicon\\.ico|opengraph-image).*)"],
 }
