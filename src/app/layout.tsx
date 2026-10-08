@@ -26,13 +26,13 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       siteName: "26³",
-      title: "26³ · Company Acronym Glossary",
+      title: "26³ · Acronym Glossary",
       description,
       images: [{ url: image, width: 1200, height: 630, alt: "26³ company glossary" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "26³ · Company Acronym Glossary",
+      title: "26³ · Acronym Glossary",
       description,
       images: [image],
     },

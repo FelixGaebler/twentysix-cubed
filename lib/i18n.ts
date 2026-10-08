@@ -17,7 +17,7 @@ export function isLocale(value: unknown): value is Locale {
 
 const en = {
   metadata: {
-    description: "How many three-letter combinations does our company have a meaning for?",
+    description: "How many three-letter combinations from our company do you know?",
   },
   nav: {
     label: "Main",
@@ -42,7 +42,7 @@ const en = {
     home: "Back to home",
   },
   home: {
-    question: "How many three-letter combinations does our company have a meaning for?",
+    question: "How many three-letter combinations from our company do you know?",
     progressLabel: "Glossary progress",
     progressSummary: (discovered: string, total: string) => `${discovered} of ${total} combinations discovered`,
     discovered: "discovered",
@@ -147,7 +147,7 @@ export type Dictionary = typeof en
 
 const de: Dictionary = {
   metadata: {
-    description: "Für wie viele Kombinationen aus drei Buchstaben hat unser Unternehmen eine Bedeutung?",
+    description: "Wie viele dreibuchstabige Abkürzungen aus unserem Unternehmen kennst du?",
   },
   nav: {
     label: "Hauptnavigation",
@@ -172,7 +172,7 @@ const de: Dictionary = {
     home: "Zur Startseite",
   },
   home: {
-    question: "Für wie viele Kombinationen aus drei Buchstaben hat unser Unternehmen eine Bedeutung?",
+    question: "Wie viele dreibuchstabige Abkürzungen aus unserem Unternehmen kennst du?",
     progressLabel: "Glossar-Fortschritt",
     progressSummary: (discovered, total) => `${discovered} von ${total} Kombinationen entdeckt`,
     discovered: "entdeckt",
