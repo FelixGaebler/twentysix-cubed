@@ -162,11 +162,13 @@ containing production Helm values. The production namespace must already exist
 and match `K8S_NAMESPACE`. Set `database.url` in that values file to the
 complete PostgreSQL connection string. Helm creates the
 database Secret from this URL; the pre-install migration receives it directly.
-The URL is stored in Helm release metadata and the migration Job specification,
-so restrict access to these resources and release history. An empty URL makes
-the chart use a pre-existing database Secret. OIDC secrets and the image-pull
-Secret must still be provisioned as configured. Validate the merged
-configuration with GitLab CI Lint before enabling protected release tags.
+The database and OIDC keys share one `<release>-secret`. Credentials are stored
+in Helm release metadata and the migration Job specification, so restrict
+access to these resources and release history. When all database and OIDC
+secret values are empty, the chart uses a pre-existing `<release>-secret` with
+all configured keys. The image-pull Secret must still be provisioned as
+configured. Validate the merged configuration with GitLab CI Lint before
+enabling protected release tags.
 
 Example `SECRET_VALUES` file (replace the example values; never commit real
 credentials):
@@ -190,6 +192,12 @@ devUser:
 ```
 
 The registry image-pull Secret is set separately by the deploy job.
+
+The Helm chart defaults to the `haproxy` Ingress class. Configure
+`ingress.hosts` and `ingress.tls` to use an existing TLS Secret. To have
+cert-manager request certificates, set `issuer.enabled`, `issuer.acmeServer`
+and `issuer.email`; the chart then creates an ACME Issuer and a Certificate for
+each TLS entry. This requires cert-manager to be installed in the cluster.
 
 ## Getting started
 
@@ -557,18 +565,16 @@ connection string becomes invalid.
 ### Kubernetes (Helm)
 
 The chart in [`helm/`](helm) deploys the app and runs the migration image as a
-`pre-install`/`pre-upgrade` hook. It expects an existing PostgreSQL database
-and Secrets for the connection string and the OIDC credentials:
+`pre-install`/`pre-upgrade` hook. Supply the database URL and OIDC credentials
+through a protected values file; Helm stores them in one `<release>-secret`.
+The migration hook receives the database URL directly because it runs before
+that Secret is created. To reuse a Secret provisioned outside Helm, leave all
+database and OIDC secret values empty and create one `<release>-secret` with the
+configured keys.
 
 ```bash
-kubectl create secret generic twentysix-cubed-db \
-  --from-literal=DATABASE_URL='postgresql://user:password@host:5432/db'
-
-kubectl create secret generic twentysix-cubed-oidc \
-  --from-literal=OIDC_CLIENT_SECRET='…' \
-  --from-literal=SESSION_SECRET="$(openssl rand -base64 32)"
-
 helm install twentysix-cubed ./helm \
+  --values /secure/path/production-values.yaml \
   --set image.repository=ghcr.io/<you>/twentysix-cubed \
   --set migrations.image.repository=ghcr.io/<you>/twentysix-cubed-migrate \
   --set ingress.enabled=true \
@@ -631,7 +637,7 @@ deliberately instead of rediscovered.
 
 | Decision | Why | Cost / debt | Revisit when |
 | --- | --- | --- | --- |
-| **Create database and OIDC Secrets from Helm values; pass a supplied database URL directly to the migration hook** | One release configures the app and its runtime credentials; first-install migrations do not wait for a Secret that Helm has not created yet | Credentials are stored in Helm release metadata, Kubernetes Secrets and the migration Job specification; access must be restricted | An external secret manager is available and should own secret lifecycle |
+| **Create one shared app Secret from Helm values; pass its database URL directly to the migration hook** | One release configures the app and its runtime credentials; first-install migrations do not wait for a Secret that Helm has not created yet | Credentials are stored in Helm release metadata, one Kubernetes Secret and the migration Job specification; access must be restricted | An external secret manager is available and should own secret lifecycle |
 | **CPU and memory requests and limits for app and migration containers** | Supports namespaces whose resource quotas require all four allocations | Default limits can throttle CPU or terminate memory-heavy workloads; tune the values for the deployment | Observed resource usage exceeds the defaults |
 | **Multi-arch images** (`linux/amd64` + `linux/arm64`), arm64 emulated with QEMU on standard GitHub runners | Runs on ARM servers (AWS Graviton, Azure Cobalt, Hetzner CAX) and Apple Silicon without rebuilding | Image builds take several times longer than amd64 alone | Build times hurt: switch to native `ubuntu-24.04-arm` runners and merge the manifests |
 | **Separate migration image** with the full Prisma CLI | The runtime image stays slim (~430 MB, standalone server only) | The migration image is ~2.9 GB, because the Prisma CLI needs all dependencies | Prisma ships a standalone migration binary |

@@ -1,0 +1,60 @@
+replicaCount: 1
+
+image:
+  repository: atp-docker-private-images.artifactory.rewe.local/twentysix-cubed
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets:
+  - name: esc-artifactory-global-reader
+
+database:
+  url: ""
+
+oidc:
+  enabled: true
+  issuer: "https://login.rewe-group.com/realms/prod168"
+  clientId: "twentysix-cubed"
+  scopes: "openid profile email"
+  adminGroup: "twentysix_admin"
+  appUrl: "https://twentysix-cubed.prod-gcp-01.paas.rewe.local"
+
+migrations:
+  enabled: true
+  image:
+    repository: atp-docker-private-images.artifactory.rewe.local/twentysix-cubed-migrate
+    tag: ""
+  backoffLimit: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+ingress:
+  enabled: true
+  className: haproxy
+  hosts:
+    - host: twentysix-cubed.prod-gcp-01.paas.rewe.local
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: glossary.rewe-group.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: twentysix-cubed-tls
+      hosts:
+        - twentysix-cubed.prod-gcp-01.paas.rewe.local
+        - glossary.rewe-group.com
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

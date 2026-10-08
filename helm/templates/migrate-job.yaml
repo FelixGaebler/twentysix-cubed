@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "twentysix-cubed.fullname" . }}-migrate
+  name: {{ include "twentysix-cubed.resourceName" (dict "root" . "suffix" "migrate") }}
   labels:
     {{- include "twentysix-cubed.labels" . | nindent 4 }}
   annotations:
@@ -33,7 +33,7 @@ spec:
               {{- else }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.database.existingSecret }}
+                  name: {{ include "twentysix-cubed.secretName" . }}
                   key: {{ .Values.database.secretKey }}
               {{- end }}
           {{- with .Values.migrations.resources }}

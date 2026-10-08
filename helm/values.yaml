@@ -13,15 +13,17 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# Set url to let Helm create the database Secret. Leave it empty to use an
-# existing Secret with the configured name and key.
+# Defaults to <release-name>-secret, shared by database and OIDC credentials.
+secretName: ""
+
+# Set url to let Helm create the shared application Secret. Leave it and the
+# OIDC secret values empty to use a pre-existing Secret with all configured keys.
 database:
   url: ""
-  existingSecret: twentysix-cubed-db
   secretKey: DATABASE_URL
 
-# Sign-in via OpenID Connect (Keycloak, Entra ID, Okta, …). Set both secrets to
-# let Helm create the OIDC Secret; leave them empty to use an existing Secret.
+# Sign-in via OpenID Connect (Keycloak, Entra ID, Okta, …). OIDC secret keys are
+# stored in the same application Secret as DATABASE_URL.
 oidc:
   enabled: false
   issuer: https://keycloak.example.com/realms/company
@@ -33,7 +35,6 @@ oidc:
   appUrl: https://acronyms.example.com
   clientSecret: ""
   sessionSecret: ""
-  existingSecret: twentysix-cubed-oidc
   clientSecretKey: OIDC_CLIENT_SECRET
   sessionSecretKey: SESSION_SECRET
 
@@ -91,7 +92,7 @@ service:
 
 ingress:
   enabled: false
-  className: ""
+  className: haproxy
   annotations: {}
   hosts:
     - host: acronyms.example.com
@@ -102,6 +103,11 @@ ingress:
   #  - secretName: acronyms-tls
   #    hosts:
   #      - acronyms.example.com
+
+issuer:
+  enabled: false
+  acmeServer: ""
+  email: ""
 
 # Expose the service via a Gateway API HTTPRoute instead of an Ingress.
 httpRoute:

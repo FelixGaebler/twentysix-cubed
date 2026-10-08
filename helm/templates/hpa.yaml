@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "twentysix-cubed.fullname" . }}
+  name: {{ include "twentysix-cubed.resourceName" (dict "root" . "suffix" "hpa") }}
   labels:
     {{- include "twentysix-cubed.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "twentysix-cubed.fullname" . }}
+    name: {{ include "twentysix-cubed.resourceName" (dict "root" . "suffix" "deployment") }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

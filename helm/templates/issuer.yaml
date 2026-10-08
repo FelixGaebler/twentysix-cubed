@@ -1,0 +1,20 @@
+{{- if .Values.issuer.enabled -}}
+{{- $issuerName := include "twentysix-cubed.resourceName" (dict "root" . "suffix" "issuer") -}}
+{{- $privateKeyName := include "twentysix-cubed.resourceName" (dict "root" . "suffix" "issuer-private-key") -}}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $issuerName }}
+  labels:
+    {{- include "twentysix-cubed.labels" . | nindent 4 }}
+spec:
+  acme:
+    email: {{ required "issuer.email is required when enabling the ACME issuer" .Values.issuer.email | quote }}
+    privateKeySecretRef:
+      name: {{ $privateKeyName }}
+    server: {{ required "issuer.acmeServer is required when enabling the ACME issuer" .Values.issuer.acmeServer | quote }}
+    solvers:
+      - http01:
+          ingress:
+            class: {{ .Values.ingress.className | default "haproxy" }}
+{{- end }}
