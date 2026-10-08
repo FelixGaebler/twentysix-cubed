@@ -20,14 +20,15 @@ export default function OpenGraphImage() {
           height: "100%",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          padding: "64px 76px",
+          justifyContent: "center",
+          gap: 24,
+          padding: "48px 64px",
           backgroundColor: "#f2f5ed",
           color: "#172b28",
           fontFamily: "Arial, sans-serif",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", width: 650 }}>
+        <div style={{ display: "flex", flexDirection: "column", width: 500 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 34 }}>
             <div
               style={{
@@ -48,7 +49,7 @@ export default function OpenGraphImage() {
               COMPANY GLOSSARY
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", fontSize: 66, fontWeight: 800, lineHeight: 1.02, letterSpacing: -2 }}>
+          <div style={{ display: "flex", flexDirection: "column", fontSize: 52, fontWeight: 800, lineHeight: 1.02 }}>
             <div>Acronyms,</div>
             <div>decoded together.</div>
           </div>
@@ -62,24 +63,24 @@ export default function OpenGraphImage() {
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 18, backgroundColor: "#e3eadc", borderRadius: 22 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, backgroundColor: "#e3eadc", borderRadius: 20 }}>
           {rows.map((row, rowIndex) => (
-            <div key={rowIndex} style={{ display: "flex", gap: 12 }}>
+            <div key={rowIndex} style={{ display: "flex", gap: 10 }}>
               {row.map((letter) => {
                 const highlighted = rowIndex === 2;
                 return (
                   <div
                     key={letter}
                     style={{
-                      width: 88,
-                      height: 88,
+                      width: 60,
+                      height: 60,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      borderRadius: 13,
+                      borderRadius: 10,
                       backgroundColor: highlighted ? "#c9ef63" : "#213b36",
                       color: highlighted ? "#172b28" : "#f7f8f3",
-                      fontSize: 40,
+                      fontSize: 30,
                       fontWeight: 800,
                     }}
                   >
