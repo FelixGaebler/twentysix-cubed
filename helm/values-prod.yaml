@@ -13,7 +13,7 @@ database:
 
 oidc:
   enabled: true
-  issuer: "https://login.rewe-group.com/realms/prod168"
+  issuer: "https://login.rewe-group.com/auth/realms/prod168"
   clientId: "twentysix-cubed"
   scopes: "openid profile email"
   adminGroup: "twentysix_admin"
@@ -58,3 +58,8 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+issuer:
+  enabled: true
+  acmeServer: https://ejbca-ra01.koeln.ads.risnet.de/ejbca/acme/ACME-TLS-3m/directory
+  email: "felix.gaebler@rewe-group.com"
